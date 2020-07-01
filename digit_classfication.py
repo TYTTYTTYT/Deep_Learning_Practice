@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import random
+import time
 
 # %%
 def initiate_dataset(size=5000):
@@ -69,15 +70,19 @@ class Network_NP:
         self.__batch_size__ = batch_size
 
         for i in range(epoch):
+            tic = time.time()
+
             random.shuffle(train_data)
             for j in range(0, n, batch_size):
                 batch = train_data[j: j + batch_size]
                 self.update_batch(batch, eta)
-            
-            print('epoch ' + str(i) + 'finished!')
 
             if test_data:
                 self.evaluate(test_data)
+            
+            elapse = time.time() - tic
+            print('epoch ' + str(i) + 'finished!')
+            print('time usage: ' + str(elapse))
         
         return
 
@@ -174,6 +179,21 @@ class Network_torch:
 
         return features
 
+    def evaluate(self, test_set, test_label):
+        with torch.no_grad():
+            test_set = torch.from_numpy(test_set.T).to(self.weights[0].device)
+            test_label = torch.from_numpy(test_label).to(self.weights[0].device)
+
+            prediction = self.predict(test_set)
+            comp = prediction == test_label
+
+            accuracy = comp.sum().double() / comp.shape[0]
+            accuracy = accuracy.cpu().data.tolist()
+
+            print('accuracy: ' + str(accuracy))
+
+            return accuracy
+
     def SGD(self, train_set, train_label, epoch, batch_size, eta, test_set=None, test_label=None):
         n = train_set.shape[0]
         for i in range(self.num_layers - 1):
@@ -186,6 +206,8 @@ class Network_torch:
         train_label = self.featurelize(train_label).to(self.device)
 
         for i in range(epoch):
+            tic = time.time()
+
             perm = torch.randperm(n)
 
             for j in range(0, n, batch_size):
@@ -193,37 +215,38 @@ class Network_torch:
 
                 activations = self.feedforward(train_set[:, indices])
                 d = train_label[:, indices] - activations
-                cost = (d.square()).sum() / batch_size
+                cost = (d.square()).sum() / batch_size / 2
                 cost.backward()
 
                 for k in range(self.num_layers - 1):
-                    print(k)
-                    print(eta * self.weights[k].grad)
                     self.weights[k] = (self.weights[k] - eta * self.weights[k].grad).detach()
                     self.weights[k].requires_grad_()
                     self.biases[k] = (self.biases[k] - eta * self.biases[k].grad).detach()
                     self.biases[k].requires_grad_()
-    
+            
+            if test_set is not None:
+                self.evaluate(test_set, test_label)
+
+            elapse = time.time() - tic
             print('epoch ' + str(i) + 'finished!')
-            for i in range(self.num_layers - 1):
-                self.weights[i] = self.weights[i].to(torch.device('cpu'))
-                self.weights[i].detach()
-                self.biases[i] = self.biases[i].to(torch.device('cpu'))
-                self.biases[i].detach()
+            print('time usage: ' + str(elapse))
+
+        for i in range(self.num_layers - 1):
+            self.weights[i] = self.weights[i].to(torch.device('cpu')).detach()
+            self.biases[i] = self.biases[i].to(torch.device('cpu')).detach()
         return
 
 
 # %%
-train_set, train_label, train_data = initiate_dataset(100)
-
-
-# %%
-net = Network_torch([784, 30, 30, 30, 10])
-net.SGD(train_set, train_label, 1, 15, 3)
-
-# %%
 train_set, train_label, train_data = initiate_dataset(60000)
-net = Network_NP([784, 30, 30, 30, 10])
-net.SGD(train_data[:50000], 30, 10, 3, train_data[55500:56500])
+
+
+# %%
+net = Network_torch([784, 1000, 100, 30, 30, 30, 10])
+net.SGD(train_set[:50000], train_label[:50000], 30, 10, 3, train_set[55000:56000], train_label[55000:56000])
+
+# %%
+net = Network_NP([784, 1000, 100, 30, 30, 30, 10])
+net.SGD(train_data[:50000], 30, 10, 3, train_data[55000:56000])
 
 # %%
