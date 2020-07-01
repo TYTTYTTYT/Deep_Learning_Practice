@@ -6,7 +6,7 @@ import random
 
 # %%
 def initiate_dataset(size=5000):
-    train_set = np.empty((size, 28 * 28), dtype=int)
+    train_set = np.empty((size, 28 * 28))
     train_label = np.empty(size, dtype=int)
     with open('origin.data', 'rb') as f:
         f.seek(16)
@@ -27,7 +27,7 @@ def initiate_dataset(size=5000):
 
     train_data = [[np.reshape(x, (784, 1)) / 255, feature(y)] for x, y in zip(train_set, train_label)]
 
-    return train_set, train_label, train_data
+    return train_set / 255, train_label, train_data
 
 def feature(y):
     fea = np.zeros((10, 1), dtype=int)
@@ -133,6 +133,93 @@ class Network_NP:
         print('accuracy = ' + str(correct / (correct + wrong)))
         return
 
+
+# %%
+class Network_torch:
+
+    def __init__(self, sizes):
+        self.sizes = sizes
+        self.num_layers = len(sizes)
+
+        if torch.cuda.is_available():
+            self.device = torch.device("cuda")
+        else:
+            self.device = torch.device("cpu")
+        
+        self.weights = [torch.randn((n, d), dtype=torch.double)
+                        for n, d in zip(self.sizes[1:], self.sizes[:-1])]
+        self.biases = [torch.randn((n, 1), dtype=torch.double)
+                       for n in sizes[1:]]
+
+    def feedforward(self, x):
+        activation = x
+        for w, b in zip(self.weights, self.biases):
+            activation = (w @ activation + b).sigmoid()
+        
+        return activation
+
+    def predict(self, x):
+        with torch.no_grad():
+            activation = self.feedforward(x)
+            values, indices = torch.max(activation, dim=0)
+
+        return indices
+
+    def featurelize(self, labels):
+        n = len(labels)
+        features = torch.zeros(self.sizes[-1], n, device=self.device, dtype=torch.double)
+
+        for i in range(n):
+            features[labels[i], i] = 1
+
+        return features
+
+    def SGD(self, train_set, train_label, epoch, batch_size, eta, test_set=None, test_label=None):
+        n = train_set.shape[0]
+        for i in range(self.num_layers - 1):
+            self.weights[i] = self.weights[i].to(self.device)
+            self.weights[i].requires_grad_()
+            self.biases[i] = self.biases[i].to(self.device)
+            self.biases[i].requires_grad_()
+        
+        train_set = torch.from_numpy(train_set.T).to(self.device)
+        train_label = self.featurelize(train_label).to(self.device)
+
+        for i in range(epoch):
+            perm = torch.randperm(n)
+
+            for j in range(0, n, batch_size):
+                indices = perm[j:j + batch_size]
+
+                activations = self.feedforward(train_set[:, indices])
+                d = train_label[:, indices] - activations
+                cost = (d.square()).sum() / batch_size
+                cost.backward()
+
+                for k in range(self.num_layers - 1):
+                    print(k)
+                    print(eta * self.weights[k].grad)
+                    self.weights[k] = (self.weights[k] - eta * self.weights[k].grad).detach()
+                    self.weights[k].requires_grad_()
+                    self.biases[k] = (self.biases[k] - eta * self.biases[k].grad).detach()
+                    self.biases[k].requires_grad_()
+    
+            print('epoch ' + str(i) + 'finished!')
+            for i in range(self.num_layers - 1):
+                self.weights[i] = self.weights[i].to(torch.device('cpu'))
+                self.weights[i].detach()
+                self.biases[i] = self.biases[i].to(torch.device('cpu'))
+                self.biases[i].detach()
+        return
+
+
+# %%
+train_set, train_label, train_data = initiate_dataset(100)
+
+
+# %%
+net = Network_torch([784, 30, 30, 30, 10])
+net.SGD(train_set, train_label, 1, 15, 3)
 
 # %%
 train_set, train_label, train_data = initiate_dataset(60000)

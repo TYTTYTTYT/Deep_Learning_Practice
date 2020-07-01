@@ -79,3 +79,66 @@ print(x)
 print(x.grad)
 
 # %%
+x = torch.ones(2, 2, requires_grad=True)
+print(x)
+
+# %%
+y = x + 2
+print(y)
+
+# %%
+z = y * y * 3
+out = z.mean()
+
+print(z, out)
+
+# %%
+out.backward()
+
+# %%
+x.grad
+
+# %%
+y.grad
+
+# %%
+z.grad
+
+# %%
+x = torch.ones(4, 4, device=device, requires_grad=True)
+y = 3 * x
+y.requires_grad_(True)
+z = y * y
+out = z.mean()
+
+
+# %%
+out.backward()
+
+# %%
+y.grad
+
+# %%
+x.grad
+
+# %%
+out
+
+# %%
+x
+
+# %%
+x = torch.tensor([3, 2, 1], requires_grad=True, dtype=torch.float)
+a = np.ones((1, 3))
+
+
+# %%
+out = x * x * 3 * torch.from_numpy(a)
+out = out.mean()
+out.backward()
+x.grad
+
+# %%
+x[2]
+
+# %%
