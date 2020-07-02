@@ -194,7 +194,25 @@ class Network_torch:
 
             return accuracy
 
-    def SGD(self, train_set, train_label, epoch, batch_size, eta, test_set=None, test_label=None):
+    def MSE(self, activations, y):
+        d = y - activations
+        cost = d.square().sum() / activations.shape[1] / 2
+
+        return cost
+
+    def cross_entropy(self, activations, y):
+        cost = -(y * activations.log() + (1 - y) * (1 - activations).log()).sum() / activations.shape[1]
+        return cost
+
+    def SGD(self, train_set, train_label, epoch, batch_size, eta,
+            test_set=None, test_label=None, cost_function=None):
+        if cost_function == 'MSE':
+            cost_function = self.MSE
+        if cost_function == 'cross_entropy':
+            cost_function = self.cross_entropy
+        else:
+            cost_function = self.cross_entropy
+
         n = train_set.shape[0]
         for i in range(self.num_layers - 1):
             self.weights[i] = self.weights[i].to(self.device)
@@ -214,8 +232,9 @@ class Network_torch:
                 indices = perm[j:j + batch_size]
 
                 activations = self.feedforward(train_set[:, indices])
-                d = train_label[:, indices] - activations
-                cost = (d.square()).sum() / batch_size / 2
+                # d = train_label[:, indices] - activations
+                # cost = (d.square()).sum() / batch_size / 2
+                cost = cost_function(activations, train_label[:, indices])
                 cost.backward()
 
                 for k in range(self.num_layers - 1):
@@ -228,7 +247,7 @@ class Network_torch:
                 self.evaluate(test_set, test_label)
 
             elapse = time.time() - tic
-            print('epoch ' + str(i) + 'finished!')
+            print('epoch ' + str(i) + ' finished!')
             print('time usage: ' + str(elapse))
 
         for i in range(self.num_layers - 1):
@@ -242,8 +261,8 @@ train_set, train_label, train_data = initiate_dataset(60000)
 
 
 # %%
-net = Network_torch([784, 1000, 100, 30, 30, 30, 10])
-net.SGD(train_set[:50000], train_label[:50000], 30, 10, 3, train_set[55000:56000], train_label[55000:56000])
+net = Network_torch([784, 100, 100, 100, 10])
+net.SGD(train_set[:50000], train_label[:50000], 30, 10, 0.1, train_set[55000:56000], train_label[55000:56000])
 
 # %%
 net = Network_NP([784, 1000, 100, 30, 30, 30, 10])
