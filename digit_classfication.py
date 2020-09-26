@@ -261,7 +261,7 @@ train_set, train_label, train_data = initiate_dataset(60000)
 
 
 # %%
-net = Network_torch([784, 100, 100, 100, 10])
+net = Network_torch([784, 1000, 100, 30, 30, 30, 10])
 net.SGD(train_set[:50000], train_label[:50000], 30, 10, 0.1, train_set[55000:56000], train_label[55000:56000])
 
 # %%

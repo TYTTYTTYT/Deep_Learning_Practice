@@ -3,9 +3,32 @@ import torch
 import numpy as np
 import time
 
+# %%
+x = torch.rand(5, 3)
+x = torch.zeros(5, 3, dtype=torch.long)
+x = torch.tensor([5.5, 234, -123])
+x = x.new_ones(5, 3, dtype=torch.double)
+x = torch.randn_like(x, dtype=torch.double)
+print(x)
+print(x.size())
+x.t_()
+print(x.size())
 
 # %%
-device = torch.device("cuda")
+print(x.new_ones(3, 5))
+print(torch.ones(5, 3))
+
+# %%
+x = torch.ones(5, 3)
+y = torch.rand(5, 5)
+print(x * y)
+
+# %%
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+print(device)
 
 # %% [markdown]
 # ## Compare running time between CPU and GPU
@@ -27,6 +50,9 @@ for i in range(1000):
     z = x * y + 100
 print(z[0, 0])
 print("time in GPU: " + str(time.time() - t))
+
+# %% [markdown]
+# ## Samples of autograd
 
 # %%
 x = torch.ones(2, 2, requires_grad=True)
@@ -56,10 +82,28 @@ b = (a * a).sum()
 print(b.grad_fn)
 
 # %%
-out.backward()
+x = torch.ones(2, 2, requires_grad=True)
+y = x + 2
+z = y * y * 3
+out = z.mean()
+print(z, out)
+
+# %%
+x = torch.rand(2, 2, requires_grad=True)
+y = torch.tensor([[1, 2], [3, 4]], dtype=torch.double)
+z = x * y + 2
+
+# %%
+out = z.mean()
+
+# %%
+z.backward(torch.ones(2, 2, dtype=torch.float))
+
+# %%
 print(x.grad)
 
 # %%
+out.backward()
 print(x.grad)
 
 # %%
