@@ -187,7 +187,7 @@ x.grad
 x[2]
 
 # %%
-x = torch.tensor([1,2,3,4])
+x = torch.tensor([1, 2, 3, 4])
 # %%
 y = x.view(2, 2)
 # %%
