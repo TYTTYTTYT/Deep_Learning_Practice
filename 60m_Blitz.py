@@ -2,6 +2,7 @@
 import torch
 import numpy as np
 import time
+from torch import nn
 
 # %%
 x = torch.rand(5, 3)
@@ -185,4 +186,20 @@ x.grad
 # %%
 x[2]
 
+# %%
+x = torch.tensor([1,2,3,4])
+# %%
+y = x.view(2, 2)
+# %%
+print(x)
+print(y)
+
+# %%
+sm = nn.Softmax()
+
+# %%
+a = torch.randn(2, 10)
+print(a)
+# %%
+print(sm(a))
 # %%

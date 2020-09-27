@@ -1,11 +1,28 @@
 # %%
 import matplotlib.pyplot as plt
 import numpy as np
+from torch import nn
+import torch.nn.functional as F
 import torch
+from torch import optim
 import random
 import time
 
 # %%
+def split_dataset(data_set, data_label, num_valid=500, num_test=1000):
+    num_train = data_set.shape[0] - num_valid - num_test
+
+    train_set = data_set[:num_train]
+    train_label = data_label[:num_train]
+
+    valid_set = data_set[num_train:num_train + num_valid]
+    valid_label = data_label[num_train:num_train + num_valid]
+
+    test_set = data_set[-num_test:]
+    test_label = data_label[-num_test:]
+
+    return train_set, train_label, valid_set, valid_label, test_set, test_label
+
 def initiate_dataset(size=5000):
     train_set = np.empty((size, 28 * 28))
     train_label = np.empty(size, dtype=int)
@@ -29,6 +46,24 @@ def initiate_dataset(size=5000):
     train_data = [[np.reshape(x, (784, 1)) / 255, feature(y)] for x, y in zip(train_set, train_label)]
 
     return train_set / 255, train_label, train_data
+
+def dataset_to_2d(train_set, train_label, valid_size=500, test_size=1000):
+    num_train = train_set.shape[0] - valid_size - test_size
+
+    set_2d = torch.from_numpy(train_set).type(torch.float)
+    set_2d = set_2d.view(-1, 1, 28, 28)
+    label_2d = torch.from_numpy(train_label)
+
+    train_set_2d = set_2d[:num_train]
+    train_label_2d = label_2d[:num_train]
+
+    valid_set_2d = set_2d[num_train:num_train + valid_size]
+    valid_label_2d = label_2d[num_train:num_train + valid_size]
+
+    test_set_2d = set_2d[-test_size:]
+    test_label_2d = label_2d[-test_size:]
+
+    return train_set_2d, train_label_2d, valid_set_2d, valid_label_2d, test_set_2d, test_label_2d
 
 def feature(y):
     fea = np.zeros((10, 1), dtype=int)
@@ -255,17 +290,111 @@ class Network_torch:
             self.biases[i] = self.biases[i].to(torch.device('cpu')).detach()
         return
 
+# %%
+class CNN_torch(nn.Module):
+
+    def __init__(self):
+        super(CNN_torch, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, 3, stride=(1, 1))
+        self.conv2 = nn.Conv2d(6, 16, 3, stride=(1, 1))
+
+        self.pool = nn.MaxPool2d(2, 2)
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+        self.sm = nn.Softmax()
+
+        self.criterion = nn.NLLLoss()
+
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.to(self.device)
+
+        return
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+
+        x = self.pool(F.relu(self.conv2(x)))
+
+        x = x.view(-1, self.num_flat_features(x))   # -1 represents the batch dimension
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.sm(self.fc3(x))
+        return x
+
+    def predict(self, x):
+        with torch.no_grad():
+            activation = self.forward(x)
+            values, indices = torch.max(activation, dim=1)
+
+        return indices
+
+    def evaluate(self, valid_set, valid_label):
+        with torch.no_grad():
+            prediction = self.predict(valid_set)
+            comp = prediction == valid_label
+
+            accuracy = comp.sum().double() / comp.shape[0]
+            accuracy = accuracy.cpu().data.tolist()
+
+            print('CNN\'s accuracy: ' + str(accuracy))
+
+            return accuracy
+
+    def SGD(self, train_set, train_label, batch_size, num_epoche, eta, momentum,
+            valid_set=None, valid_label=None):
+        train_set = train_set.to(self.device)
+        train_label = train_label.to(self.device)
+
+        optimizer = optim.SGD(net.parameters(), lr=eta)
+        num_set = train_set.size()[0]
+        
+        for epoch in range(num_epoche):
+            tic = time.time()
+
+            perm = perm = torch.randperm(num_set)
+            for j in range(0, num_set, batch_size):
+                indices = perm[j:j + batch_size]
+
+                optimizer.zero_grad()
+                out = net(train_set[indices])
+                loss = net.criterion(out, train_label[indices])
+                loss.backward()
+                optimizer.step()
+
+            elapse = time.time() - tic
+            print('epoch ' + str(epoch) + ' finished!')
+            print('time usage: ' + str(elapse))
+            
+            if valid_set is not None and valid_label is not None:
+                valid_set = valid_set.to(self.device)
+                valid_label = valid_label.to(self.device)
+                self.evaluate(valid_set, valid_label)
+
+    def num_flat_features(self, x):
+        size = x.size()[1:]
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
 
 # %%
-train_set, train_label, train_data = initiate_dataset(60000)
+train_set, train_label, train_data = initiate_dataset(30000)
+train_set, train_label, valid_set, valid_label, test_set, test_label = split_dataset(train_set, train_label)
+train_set_2d, train_label_2d, valid_set_2d, valid_label_2d, test_set_2d, test_label_2d = dataset_to_2d(train_set, train_label)
 
 
 # %%
 net = Network_torch([784, 1000, 100, 30, 30, 30, 10])
-net.SGD(train_set[:50000], train_label[:50000], 30, 10, 0.1, train_set[55000:56000], train_label[55000:56000])
+net.SGD(train_set, train_label, 30, 10, 0.1, valid_set, valid_label)
 
 # %%
 net = Network_NP([784, 1000, 100, 30, 30, 30, 10])
 net.SGD(train_data[:50000], 30, 10, 3, train_data[55000:56000])
+
+# %%
+net = CNN_torch()
+net.SGD(train_set_2d, train_label_2d, 20, 20, 0.1, 0.9, valid_set_2d, valid_label_2d)
 
 # %%
