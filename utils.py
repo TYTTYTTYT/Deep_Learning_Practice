@@ -12,6 +12,21 @@ def draw(x):
     image = np.reshape(x, (28, 28))
     plt.imshow(image, cmap='gray')
 
+    return
+
+def table_draw(x, rows, columns):
+    fig = plt.figure()
+    plt.axis("off")
+    index = 0
+    for r in range(rows):
+        for c in range(columns):
+            image = np.reshape(x[index], (28, 28))
+            index += 1
+            fig.add_subplot(rows, columns, index)
+            plt.imshow(image, cmap='gray')
+
+    return
+
 def initiate_dataset(size=5000):
     train_set = np.empty((size, 28 * 28))
     train_label = np.empty(size, dtype=int)

@@ -237,6 +237,7 @@ class CNN_torch(nn.Module):
         self.conv2 = nn.Conv2d(6, 16, 3, stride=(1, 1))
 
         self.pool = nn.MaxPool2d(2, 2)
+        
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
@@ -246,7 +247,6 @@ class CNN_torch(nn.Module):
         self.criterion = nn.NLLLoss()
 
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.to(self.device)
 
         return
 
@@ -282,10 +282,11 @@ class CNN_torch(nn.Module):
 
     def SGD(self, train_set, train_label, batch_size, num_epoche, eta, momentum,
             valid_set=None, valid_label=None):
+        self.to(self.device)
         train_set = train_set.to(self.device)
         train_label = train_label.to(self.device)
 
-        optimizer = optim.SGD(net.parameters(), lr=eta)
+        optimizer = optim.SGD(self.parameters(), lr=eta, momentum=momentum)
         num_set = train_set.size()[0]
         
         for epoch in range(num_epoche):
@@ -296,8 +297,8 @@ class CNN_torch(nn.Module):
                 indices = perm[j:j + batch_size]
 
                 optimizer.zero_grad()
-                out = net(train_set[indices])
-                loss = net.criterion(out, train_label[indices])
+                out = self.forward(train_set[indices])
+                loss = self.criterion(out, train_label[indices])
                 loss.backward()
                 optimizer.step()
 
@@ -309,6 +310,8 @@ class CNN_torch(nn.Module):
                 valid_set = valid_set.to(self.device)
                 valid_label = valid_label.to(self.device)
                 self.evaluate(valid_set, valid_label)
+        
+        self.to(torch.device('cpu'))
 
     def num_flat_features(self, x):
         size = x.size()[1:]
@@ -330,11 +333,11 @@ net = Network_torch([784, 1000, 100, 30, 30, 30, 10])
 net.SGD(train_set, train_label, 30, 10, 0.1, valid_set, valid_label)
 
 # %%
-net = Network_NP([784, 1000, 100, 30, 30, 30, 10])
+net = Network_NP([784, 100, 30, 10])
 net.SGD(train_data, 30, 10, 3, valid_data)
 
 # %%
 net = CNN_torch()
-net.SGD(train_set_2d, train_label_2d, 10, 20, 0.1, 0.9, valid_set_2d, valid_label_2d)
+net.SGD(train_set_2d, train_label_2d, 10, 20, 0.1, 0.0, valid_set_2d, valid_label_2d)
 
 # %%
