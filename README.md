@@ -6,6 +6,7 @@ This is an ongoing project, currently I realized:
 + CNN and transposed CNN based autoencoder generator
 + Full-connected GAN based on the [original GAN paper](https://arxiv.org/abs/1406.2661)
 + CNN and transposed CNN based GAN based on [DCGAN](https://arxiv.org/pdf/1511.06434.pdf)
+In future:
 + Plan to combine the autoencoder and GAN in the future, use the pretrained generator of autoencoder as part of GAN
 + Plan to optimize the networks and apply them on more dataset
 
